@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+
+# Arduino / IDE
+*.elf
+*.bin
+*.hex
+*.map
+build/
+.arduino15/
+*.bak
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.orig
+
+# Generated outputs (regenerate with generate_schematic_pdf.py)
+# Comment these out if you want to track the built artefacts
+# schematic/*.pdf
+
+# Serial port logs
+*.log
+capture_*.tap
