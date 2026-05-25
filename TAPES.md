@@ -2,6 +2,7 @@
 
 | Name                           | Publisher        | Turbo tape |
 |--------------------------------|------------------|------------|
+| Blagger                        | Amsoft           |            |
 | BMX Racers                     | Mastertronic     | Novaload   |
 | Formula 1 Simulator            | Mastertronic     | Novaload   |
 | Kane                           | Mastertronic     | Novaload   |
