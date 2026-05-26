@@ -216,7 +216,7 @@ Device is Wemos D1 ESP, Host is the Linux host where `tapeosaurus.py` is run.
 | Set FALLING | `[FF][FF][FF][10]` | Switch to FALLING edge (standard KERNAL) |
 | Set CHANGE | `[FF][FF][FF][11]` | Switch to CHANGE edge (Novaload / turbo) |
 
-Command byte ranges are non-overlapping: `0x01–0x05` device-to-host, `0x10–0x11` host-to-device. A stray echo of a SET command can never be mistaken for a PLAY event.
+Command byte ranges are non-overlapping: `0x01–0x04` device-to-host, `0x10–0x11` host-to-device. A stray echo of a SET command can never be mistaken for a PLAY event.
 
 Control frames are unambiguous from pulse data: the only data frame that starts with three zero bytes would have checksum `0x00`, which is never a valid CMD byte.
 
