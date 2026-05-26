@@ -194,7 +194,8 @@ Wi-Fi is completely disabled at boot to eliminate scheduler jitter.
 
 ### Control protocol
 
-All serial frames are exactly 4 bytes, in both directions. The same `[00][00][00][CMD]` structure is used for host→device commands and device→host events.
+All serial frames are exactly 4 bytes, in both directions.
+The `[FF][FF][FF][CMD]` structure is used for host→device commands and `[00][00][00][CMD]` device→host events.
 
 Device is Wemos D1 ESP, Host is the Linux host where `tapeosaurus.py` is run.
 
