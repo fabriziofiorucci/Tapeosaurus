@@ -5,16 +5,16 @@ This repository folder contains the 3D design and print files for the Tapeosauru
 <div align="center"><img src="/img/tapeosaurus.cad.jpg" alt="Tapeosaurus enclosure"></div>
 
 <p align="middle">
-  <img src="/img/tapeosaurus-top.1.jpg" width="300" alt="Tapeosaurus enclosure top view 1" />
-  <img src="/img/tapeosaurus-top.2.jpg" width="300" alt="Tapeosaurus enclosure top view 2" />
+  <img src="/img/tapeosaurus-top.1.jpg" width="500" alt="Tapeosaurus enclosure top view 1" />
+  <img src="/img/tapeosaurus-top.2.jpg" width="500" alt="Tapeosaurus enclosure top view 2" />
 </p>
 <p align="middle">
-  <img src="/img/tapeosaurus-top.3.jpg" width="300" alt="Tapeosaurus enclosure top view 3" />
-  <img src="/img/tapeosaurus-lid.jpg" width="300" alt="Tapeosaurus enclosure lid" />
+  <img src="/img/tapeosaurus-lid.jpg" width="500" alt="Tapeosaurus enclosure lid" />
+  <img src="/img/tapeosaurus-top.3.jpg" width="500" alt="Tapeosaurus enclosure top view 3" />
 </p>
 <p align="middle">
-  <img src="/img/tapeosaurus-full.jpg" width="300" alt="Tapeosaurus enclosure full" />
-  <img src="/img/tapeosaurus-ports.jpg" width="300" alt="Tapeosaurus enclosure ports side" />
+  <img src="/img/tapeosaurus-full.jpg" width="500" alt="Tapeosaurus enclosure full" />
+  <img src="/img/tapeosaurus-ports.jpg" width="500" alt="Tapeosaurus enclosure ports side" />
 </p>
 
 ### Contents
