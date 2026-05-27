@@ -2,8 +2,20 @@
 
 This repository folder contains the 3D design and print files for the Tapeosaurus enclosure. Use these files to modify, inspect, or 3D-print the enclosure that fits the Tapeosaurus electronics.
 
-<div align="center"><img src="/img/tapeosaurus.1.png" alt="Tapeosaurus enclosure"></div>
+<div align="center"><img src="/img/tapeosaurus.cad.jpg" alt="Tapeosaurus enclosure"></div>
 
+<p align="middle">
+  <img src="/img/tapeosaurus-top.1.jpg" width="500" alt="Tapeosaurus enclosure top view 1" />
+  <img src="/img/tapeosaurus-top.2.jpg" width="500" alt="Tapeosaurus enclosure top view 2" />
+</p>
+<p align="middle">
+  <img src="/img/tapeosaurus-lid.jpg" width="500" alt="Tapeosaurus enclosure lid" />
+  <img src="/img/tapeosaurus-top.3.jpg" width="500" alt="Tapeosaurus enclosure top view 3" />
+</p>
+<p align="middle">
+  <img src="/img/tapeosaurus-full.jpg" width="500" alt="Tapeosaurus enclosure full" />
+  <img src="/img/tapeosaurus-ports.jpg" width="500" alt="Tapeosaurus enclosure ports side" />
+</p>
 
 ### Contents
 - Fusion 360 source [Tapeosaurus.f3d](Tapeosaurus.f3d) — complete Fusion 360 archive with all bodies, sketches, and appearance setup.
