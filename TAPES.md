@@ -1,5 +1,7 @@
 ## Tested tapes
 
+### Commodore 16 & Plus/4
+
 | Name                           | Publisher        | Turbo tape |
 |--------------------------------|------------------|------------|
 | Blagger                        | Amsoft           |            |
@@ -14,5 +16,12 @@
 | The Way of the Exploding Fist  | Mastertronic     | Novaload   |
 | Trizons                        | Bubblebus        |            |
 | Voidrunner                     | Mastertronic     | Novaload   |
+
+### Commodore 64/128
+
+| Name                           | Publisher        | Turbo tape |
+|--------------------------------|------------------|------------|
+| Bomber                         |                  | Yes        |
+| Treasure Island                | Mr.Micro         | Yes        |
 
 These were tested with VICE, the [Versatile Commodore Emulator](https://vice-emu.sourceforge.io/)

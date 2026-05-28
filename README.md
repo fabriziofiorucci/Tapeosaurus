@@ -1,11 +1,11 @@
 <div align="center"><img src="img/tapeosaurus.png" alt="Tapeosaurus"></div>
 <br><br>
 
-Cycle-accurate Datasette tape dumper for the Commodore 16 and Plus/4, running on a single Wemos D1 Mini (ESP8266) with a 3D-printable enclosure.
+Cycle-accurate Datasette tape dumper for the Commodore 16/Plus4, and Commodore 64/128, running on a single Wemos D1 Mini (ESP8266) with a 3D-printable enclosure.
 
 Inspired by Francesco Vannini's [TrueTape64](https://github.com/francescovannini/truetape64).
 
-Supports C16/Plus4 standard tape and Novaload turbo producing standard `.tap` v2 files compatible with VICE, Tapuino, and any other TAP-capable emulator or hardware.
+Supports C16/Plus4 standard tape and Novaload turbo, and Commodore 64/128 tapes producing standard `.tap` v2 files compatible with VICE, Tapuino, and any other TAP-capable emulator or hardware.
 
 ---
 
@@ -115,19 +115,22 @@ pip install -r cli/requirements.txt
 
 ```bash
 # Standard C16/Plus4 tape (PAL)
-python3 cli/tapeosaurus.py -p /dev/ttyUSB0 output.tap
+python3 cli/tapeosaurus.py -p /dev/ttyUSB0 -model c16 output.tap
 
-# Novaload turbo
-python3 cli/tapeosaurus.py -p /dev/ttyUSB0 --novaload output.tap
+# C16/Plus4 Novaload turbo
+python3 cli/tapeosaurus.py -p /dev/ttyUSB0 -model c16 --novaload output.tap
 
-# NTSC machine
-python3 cli/tapeosaurus.py -p /dev/ttyUSB0 --ntsc output.tap
+# C16/Plus4 NTSC machine
+python3 cli/tapeosaurus.py -p /dev/ttyUSB0 -model c16 --ntsc output.tap
 
-# Extract PRG files after capture
-python3 cli/tapeosaurus.py -p /dev/ttyUSB0 --prg output.tap
+# C16/Plus4 Extract PRG files after capture
+python3 cli/tapeosaurus.py -p /dev/ttyUSB0 -model c16 --prg output.tap
+
+# C64/128 tape (PAL)
+python3 cli/tapeosaurus.py -p /dev/ttyUSB0 -model c64 output.tap
 ```
 
-Passing `--novaload` is the only configuration needed. The CLI automatically sends the correct edge mode command to the ESP before waiting for PLAY, then selects the appropriate decode path after capture. No switches, no recompile.
+Passing `--novaload` is required for C16/Plus4 Novaload turbo tapes. The CLI automatically sends the correct edge mode command to the ESP before waiting for PLAY, then selects the appropriate decode path after capture. No switches, no recompile.
 
 ### What happens at startup
 
@@ -152,7 +155,17 @@ Capturing → output.tap
 Waiting for PLAY (LED lights up)...
 ```
 
-### Real example — dumping a Novaload tape
+```
+C64 PAL — scale: 0.492624
+Capturing → output.tap
+→ Setting edge mode: FALLING (standard)
+✔ Edge mode confirmed by device: FALLING (standard)
+Waiting for PLAY (LED lights up)...
+```
+
+### Real examples
+
+#### Dumping a C16/Plus4 Novaload tape
 
 ```
 $ python3 cli/tapeosaurus.py -p /dev/ttyUSB0 --novaload "./BMX Racers.tap"
@@ -169,12 +182,33 @@ Waiting for PLAY (LED lights up)...
   Found: "8" ($0801–$0803, 3 B)
 ```
 
+#### Dumping a C64/128 tape
+
+```
+$ python3 cli/tapeosaurus.py -p /dev/ttyUSB0 -model c64 "./Treasure Island.tap"
+C64 PAL — scale: 0.492624
+Capturing → ./Treasure Island.tap
+→ Setting edge mode: FALLING (standard)
+✔ Edge mode confirmed by device: FALLING (standard)
+Waiting for PLAY (LED lights up)...
+▶ RECORDING...
+ … 460,000 pulses
+✅ STOPPED — 461,633 pulses
+✅ TAP written: ./Treasure Island.tap (461,860 B)
+🔍 Decoding C64 KERNAL blocks...
+  ⚠ No standard C64 KERNAL blocks found (sync not detected)
+  Verify the tape is a standard (non-turbo) load, or try tapclean
+💡 Full decode: wav2prg -P loaders --machine c64 --tap ./Treasure Island.tap
+```
+
+
 ### Machine clock reference
 
-| Machine                         | PAL clock  | NTSC clock |
-|---------------------------------|------------|------------|
-| Commodore 16 / Plus4 (standard) | 886 724 Hz | 894 886 Hz |
-| Commodore 16 / Plus4 (Novaload) | 886 724 Hz | 894 886 Hz |
+| Machine                         | PAL clock  | NTSC clock   |
+|---------------------------------|------------|--------------|
+| Commodore 16 / Plus4 (standard) | 886 724 Hz | 894 886 Hz   |
+| Commodore 16 / Plus4 (Novaload) | 886 724 Hz | 894 886 Hz   |
+| Commodore 64 / 128              | 985 248 Hz | 1 022 727 Hz |
 
 The firmware always outputs 2 MHz-equivalent ticks; the CLI scales them to the correct machine clock before writing the TAP file.
 
@@ -259,4 +293,4 @@ Inspired by [TrueTape64](https://github.com/francescovannini/truetape64) by Fran
 
 ---
 
-*Made for the Commodore 16 preservation community · Long live the Datasette 🖤*
+*Made for the Commodore preservation community · Long live the Datasette 🖤*
