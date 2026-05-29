@@ -1,11 +1,12 @@
-<div align="center"><img src="img/tapeosaurus.png" alt="Tapeosaurus"></div>
-<br><br>
+# Tapeosaurus
 
-Cycle-accurate Datasette tape dumper for the Commodore 16/Plus4, and Commodore 64/128, running on a single Wemos D1 Mini (ESP8266) with a 3D-printable enclosure.
+![Tapeosaurus](img/tapeosaurus.png)
+
+Cycle-accurate tape dumper for the **Commodore 16 / Plus/4**, **Commodore 64 / 128**, and **ZX Spectrum**, running on a single Wemos D1 Mini (ESP8266) with a 3D-printable enclosure.
 
 Inspired by Francesco Vannini's [TrueTape64](https://github.com/francescovannini/truetape64).
 
-Supports C16/Plus4 standard tape and Novaload turbo, and Commodore 64/128 tapes producing standard `.tap` v2 files compatible with VICE, Tapuino, and any other TAP-capable emulator or hardware.
+Supports C16/Plus4 standard tape and Novaload turbo, Commodore 64/128 tapes, and ZX Spectrum standard ROM tapes — producing standard `.tap` v2 / `.tzx` files compatible with VICE, Fuse, Tapuino, TZXDuino, and any other TAP/TZX-capable emulator or hardware.
 
 ---
 
@@ -13,55 +14,68 @@ Supports C16/Plus4 standard tape and Novaload turbo, and Commodore 64/128 tapes 
 
 ### What you need
 
-| Qty | Part | Note |
-|-----|------|------|
-| 1 | Wemos D1 Mini | Any revision; clones work fine |
-| 1 | MP1584EN step-down module | Adjustable buck converter — set output to 5.00 V |
-| 1 | MP1584EN step-down module | Adjustable buck converter — set output to 6.10 V |
-| 1 | 10 kΩ resistor | READ voltage divider - in series with READ pin |
-| 1 | 20 kΩ resistor | READ voltage divider - shunt to GND |
-| 1 | 10 kΩ resistor | SENSE pull-up to 3.3 V |
-| 1 | Green LED | "Tape play" indicator |
-| 1 | Red LED | "Overflow" indicator |
-| 1 | Yellow LED | "Power on" indicator |
-| 2 | 390 Ω resistors | Green and red LED current limiters |
-| 1 | 680 Ω resistor | Yellow LED current limiters |
-| 1 | Passive piezo speaker | Tape audio feedback |
-| 1 | 7-pin mini-DIN connector or salvaged cable | Commodore 16 Datasette connector |
-| 1 | Mini tactile switch | Reset button |
-| 1 | DC jack barrel connector with PCB mount | Powers supply connector |
-| 1 | >= 9V DC power supply | Powers both MP1584EN modules |
+| Qty | Part                                       | Note                                             |
+| --- | ------------------------------------------ | ------------------------------------------------ |
+| 1   | Wemos D1 Mini                              | Any revision; clones work fine                   |
+| 1   | MP1584EN step-down module                  | Adjustable buck converter — set output to 5.00 V |
+| 1   | MP1584EN step-down module                  | Adjustable buck converter — set output to 6.10 V |
+| 1   | 10 kΩ resistor                             | READ voltage divider - in series with READ pin   |
+| 1   | 20 kΩ resistor                             | READ voltage divider - shunt to GND              |
+| 1   | 10 kΩ resistor                             | SENSE pull-up to 3.3 V                           |
+| 1   | Green LED                                  | "Tape play" indicator                            |
+| 1   | Red LED                                    | "Overflow" indicator                             |
+| 1   | Yellow LED                                 | "Power on" indicator                             |
+| 2   | 390 Ω resistors                            | Green and red LED current limiters               |
+| 1   | 680 Ω resistor                             | Yellow LED current limiters                      |
+| 1   | Passive piezo speaker                      | Tape audio feedback                              |
+| 1   | 7-pin mini-DIN connector or salvaged cable | Commodore 16 Datasette connector                 |
+| 1   | Mini tactile switch                        | Reset button                                     |
+| 1   | DC jack barrel connector with PCB mount    | Power supply connector                           |
+| 1   | >= 9V DC power supply                      | Powers both MP1584EN modules                     |
+
+### ZX Spectrum hardware notes
+
+The Spectrum EAR socket outputs a 5 V audio signal (not TTL).  The same
+**10 kΩ / 20 kΩ voltage divider** used for the Commodore READ line is suitable
+here — connect the EAR tip to the divider input and the sleeve to GND.
+
+The Spectrum has no motor-control line equivalent to SENSE; the capture starts
+as soon as the CLI detects the first pulse.  Because `CAPTURE_WITHOUT_SENSE`
+defaults to `0`, the firmware waits for the SENSE pin to go LOW before it
+starts storing pulses.  For Spectrum use, either:
+
+- wire a simple switch to the SENSE pin (pull it LOW when you press PLAY), **or**
+- recompile the firmware with `#define CAPTURE_WITHOUT_SENSE 1` (the CLI will
+  still wait for the first `CMD_PLAY_PRESSED` event, which in this mode fires
+  on the first pulse rather than on the SENSE signal).
 
 ### Pin mapping
 
-| Wemos Pin | GPIO | Function |
-|-----------|------|----------|
-| D1 | GPIO5 | Overflow LED (lit if data overflow triggered) |
-| D4 | GPIO2 | Onboard LED (active LOW - lit while recording) |
-| D5 | GPIO14 | SENSE from Datasette (INPUT\_PULLUP, switch to GND) |
-| D6 | GPIO12 | READ from Datasette (via 10 kΩ/20 kΩ divider → 3.3 V) |
-| D7 | GPIO13 | Passive piezo speaker |
+| Wemos Pin | GPIO   | Function                                              |
+| --------- | ------ | ----------------------------------------------------- |
+| D1        | GPIO5  | Overflow LED (lit if data overflow triggered)         |
+| D4        | GPIO2  | Onboard LED (active LOW - lit while recording)        |
+| D5        | GPIO14 | SENSE from Datasette (INPUT\_PULLUP, switch to GND)   |
+| D6        | GPIO12 | READ from Datasette (via 10 kΩ/20 kΩ divider → 3.3 V) |
+| D7        | GPIO13 | Passive piezo speaker                                 |
 
 ### Schematics
 
-<div align="center"><img src="schematics/schematics.png" alt="Schematics"></div>
-<br><br>
+![Schematics](schematics/schematics.png)
 
-> ⚠ The ESP8266 is a 3.3 V device. The Datasette READ line is 5 V TTL. The 10 kΩ / 20 kΩ divider is **mandatory** — skipping it will damage GPIO12.
+> ⚠ The ESP8266 is a 3.3 V device. The Datasette/EAR READ line is 5 V. The 10 kΩ / 20 kΩ divider is **mandatory** — skipping it will damage GPIO12.
 
 ### 3D-printable enclosure
 
-Autodesk Fusion 360 files are provided [here](CAD/)
+Autodesk Fusion 360 files are provided [here](CAD).
 
 ### MP1584EN Step-Down Calibration
 
 Each module must be pre-adjusted before connecting the Datasette.
 
-**Module U2 — 5 V (Datasette logic supply)**
-Connect 12 V, measure OUT+ and adjust the trimpot to 5.00 V.
+**Module U2 — 5 V (Datasette logic supply)** Connect 12 V, measure OUT+ and adjust the trimpot to 5.00 V.
 
-**Module U3 — 6.1 V (Datasette motor)**
-Connect 12 V, measure OUT+ and adjust the trimpot to 6.10–6.15 V. Recheck with the motor spinning under load. Values above 6.5 V risk burning the motor winding.
+**Module U3 — 6.1 V (Datasette motor)** Connect 12 V, measure OUT+ and adjust the trimpot to 6.10–6.15 V. Recheck with the motor spinning under load. Values above 6.5 V risk burning the motor winding.
 
 ### Quick Sanity Checks Before First Use
 
@@ -81,25 +95,25 @@ Connect 12 V, measure OUT+ and adjust the trimpot to 6.10–6.15 V. Recheck with
 
 - Arduino IDE 1.8+ or 2.x
 - ESP8266 Arduino core — add this URL in **File → Preferences → Additional Boards Manager URLs**:
-  `https://arduino.esp8266.com/stable/package_esp8266com_index.json`
+`https://arduino.esp8266.com/stable/package_esp8266com_index.json`
 
 ### Board settings
 
-| Setting | Value |
-|---------|-------|
-| Board | LOLIN(WEMOS) D1 R2 & mini |
+| Setting       | Value                            |
+| ------------- | -------------------------------- |
+| Board         | LOLIN(WEMOS) D1 R2 & mini        |
 | CPU Frequency | **80 MHz** ← must be 80, not 160 |
-| Upload Speed | 921600 |
+| Upload Speed  | 921600                           |
 
 > The `CLOCK_SCALE 40` constant (80 MHz ÷ 40 = 2 MHz ticks) is hardcoded. Changing CPU frequency without updating this value will corrupt all timing.
 
 ### Tuning options
 
-| Define | Default | Description |
-|--------|---------|-------------|
-| `CAPTURE_WITHOUT_SENSE` | `0` | Set to `1` to capture without waiting for PLAY — useful for isolating READ wiring issues |
+| Define                  | Default | Description                                                                              |
+| ----------------------- | ------- | ---------------------------------------------------------------------------------------- |
+| `CAPTURE_WITHOUT_SENSE` | `0`     | Set to `1` to capture without waiting for PLAY — useful for Spectrum or READ wiring tests |
 
-> Edge mode (FALLING/CHANGE) is not a compile-time setting. It is controlled entirely at runtime by the Python CLI over the serial control protocol. The default on power-up is FALLING (standard KERNAL) — safe until the CLI sets it otherwise.
+> Edge mode (FALLING/CHANGE) is not a compile-time setting. It is controlled entirely at runtime by the Python CLI over the serial control protocol. The default on power-up is FALLING (standard KERNAL) — safe until the CLI sets it otherwise.  For `-model spectrum` the CLI automatically sends `HOST_CMD_CHANGE` before capture.
 
 ---
 
@@ -107,13 +121,13 @@ Connect 12 V, measure OUT+ and adjust the trimpot to 6.10–6.15 V. Recheck with
 
 ### Install
 
-```bash
+```
 pip install -r cli/requirements.txt
 ```
 
 ### Usage
 
-```bash
+```
 # Standard C16/Plus4 tape (PAL)
 python3 cli/tapeosaurus.py -p /dev/ttyUSB0 -model c16 output.tap
 
@@ -128,6 +142,15 @@ python3 cli/tapeosaurus.py -p /dev/ttyUSB0 -model c16 --prg output.tap
 
 # C64/128 tape (PAL)
 python3 cli/tapeosaurus.py -p /dev/ttyUSB0 -model c64 output.tap
+
+# ZX Spectrum tape → TZX (default, recommended)
+python3 cli/tapeosaurus.py -p /dev/ttyUSB0 -model spectrum output.tzx
+
+# ZX Spectrum tape → raw .tap
+python3 cli/tapeosaurus.py -p /dev/ttyUSB0 -model spectrum --tap output.tap
+
+# ZX Spectrum tape → TZX + extract .bin files
+python3 cli/tapeosaurus.py -p /dev/ttyUSB0 -model spectrum --prg output.tzx
 ```
 
 Passing `--novaload` is required for C16/Plus4 Novaload turbo tapes. The CLI automatically sends the correct edge mode command to the ESP before waiting for PLAY, then selects the appropriate decode path after capture. No switches, no recompile.
@@ -135,9 +158,17 @@ Passing `--novaload` is required for C16/Plus4 Novaload turbo tapes. The CLI aut
 ### What happens at startup
 
 1. CLI connects and waits 2 seconds for the ESP to boot
-2. Sends `CMD_SET_EDGE_FALLING` or `CMD_SET_EDGE_CHANGE` depending on `--novaload`
+2. Sends `CMD_SET_EDGE_FALLING` or `CMD_SET_EDGE_CHANGE` depending on model / flags
 3. Waits up to 3 seconds for the ESP's confirmation echo
 4. Prints the confirmed edge mode and waits for PLAY
+
+```
+ZX Spectrum — 3.5 MHz — output: .tzx
+Capturing → output.tzx
+→  Setting edge mode: CHANGE (Novaload/turbo)
+✔  Edge mode confirmed by device: CHANGE (Novaload/turbo)
+Waiting for PLAY (LED lights up)...
+```
 
 ```
 C16/Plus4 PAL — scale: 0.443362
@@ -148,22 +179,41 @@ Waiting for PLAY (LED lights up)...
 ```
 
 ```
-C16/Plus4 Novaload PAL — scale: 0.443362
-Capturing → output.tap
-→  Setting edge mode: CHANGE (Novaload/turbo)
-✔  Edge mode confirmed by device: CHANGE (Novaload/turbo)
-Waiting for PLAY (LED lights up)...
-```
-
-```
 C64 PAL — scale: 0.492624
 Capturing → output.tap
-→ Setting edge mode: FALLING (standard)
-✔ Edge mode confirmed by device: FALLING (standard)
+→  Setting edge mode: FALLING (standard)
+✔  Edge mode confirmed by device: FALLING (standard)
 Waiting for PLAY (LED lights up)...
 ```
 
 ### Real examples
+
+#### Dumping a ZX Spectrum tape
+
+```
+$ python3 cli/tapeosaurus.py -p /dev/ttyUSB0 -model spectrum --prg "Manic Miner.tzx"
+ZX Spectrum — 3.5 MHz — output: .tzx
+Capturing → Manic Miner.tzx
+→  Setting edge mode: CHANGE (Novaload/turbo)
+✔  Edge mode confirmed by device: CHANGE (Novaload/turbo)
+Waiting for PLAY (LED lights up)...
+▶  RECORDING...
+  … 420,000 pulses
+✅ STOPPED — 421,044 pulses
+🔍 Decoding ZX Spectrum ROM blocks...
+
+  Block 0: Header  ✔
+    Type    : Bytes
+    Name    : "Manic Min"
+    Length  : 49152 bytes
+    Load    : $8000
+  Block 1: Data    ✔  (49152 bytes payload)
+
+✅ TZX written: Manic Miner.tzx (98,340 B)
+  ✅ BIN: Manic_Min.bin (49152 B, load $8000)
+💡 Spectrum TZX compatible with: Fuse, SpecEmu, ZXSpin, TZXDuino
+💡 Full decode: tzxtools --info Manic Miner.tzx
+```
 
 #### Dumping a C16/Plus4 Novaload tape
 
@@ -188,10 +238,10 @@ Waiting for PLAY (LED lights up)...
 $ python3 cli/tapeosaurus.py -p /dev/ttyUSB0 -model c64 "./Treasure Island.tap"
 C64 PAL — scale: 0.492624
 Capturing → ./Treasure Island.tap
-→ Setting edge mode: FALLING (standard)
-✔ Edge mode confirmed by device: FALLING (standard)
+→  Setting edge mode: FALLING (standard)
+✔  Edge mode confirmed by device: FALLING (standard)
 Waiting for PLAY (LED lights up)...
-▶ RECORDING...
+▶  RECORDING...
  … 460,000 pulses
 ✅ STOPPED — 461,633 pulses
 ✅ TAP written: ./Treasure Island.tap (461,860 B)
@@ -201,16 +251,59 @@ Waiting for PLAY (LED lights up)...
 💡 Full decode: wav2prg -P loaders --machine c64 --tap ./Treasure Island.tap
 ```
 
-
 ### Machine clock reference
 
-| Machine                         | PAL clock  | NTSC clock   |
-|---------------------------------|------------|--------------|
-| Commodore 16 / Plus4 (standard) | 886 724 Hz | 894 886 Hz   |
-| Commodore 16 / Plus4 (Novaload) | 886 724 Hz | 894 886 Hz   |
-| Commodore 64 / 128              | 985 248 Hz | 1 022 727 Hz |
+| Machine                         | Clock      | Notes                       |
+| ------------------------------- | ---------- | --------------------------- |
+| Commodore 16 / Plus4 (standard) | 886 724 Hz PAL / 894 886 Hz NTSC | |
+| Commodore 16 / Plus4 (Novaload) | 886 724 Hz PAL / 894 886 Hz NTSC | |
+| Commodore 64 / 128              | 985 248 Hz PAL / 1 022 727 Hz NTSC | |
+| ZX Spectrum (all models)        | 3 500 000 Hz | Fixed; --ntsc has no effect |
 
-The firmware always outputs 2 MHz-equivalent ticks; the CLI scales them to the correct machine clock before writing the TAP file.
+The firmware always outputs 2 MHz-equivalent ticks; the CLI scales them to the correct machine clock before writing the TAP/TZX file.
+
+---
+
+## ZX Spectrum — Technical Details
+
+### Timing constants (3.5 MHz T-states)
+
+| Signal            | T-states   |
+| ----------------- | ---------- |
+| Pilot half-pulse  | 2168       |
+| Sync-1 half-pulse | 667        |
+| Sync-2 half-pulse | 735        |
+| Bit-0 half-pulse  | 855 × 2    |
+| Bit-1 half-pulse  | 1710 × 2   |
+
+### Block types
+
+| Flag byte | Meaning                            |
+| --------- | ---------------------------------- |
+| 0x00      | Header block (19 bytes payload)    |
+| 0xFF      | Data block (variable payload)      |
+
+### Header block layout (flag = 0x00, 17 payload bytes)
+
+| Offset | Size | Field    | Notes                                         |
+| ------ | ---- | -------- | --------------------------------------------- |
+| 0      | 1    | type     | 0=Program 1=NumArray 2=CharArray 3=Code/Bytes |
+| 1      | 10   | filename | space-padded ASCII                            |
+| 11     | 2    | length   | data block payload length                     |
+| 13     | 2    | param1   | Program: LINE; Code: load address            |
+| 15     | 2    | param2   | Program: BASIC length; Code: 0x8000          |
+
+### Output formats
+
+**TZX (default, `-model spectrum`)** — Standard Speed Data blocks (0x10) for
+each decoded ROM block.  If no ROM blocks are decoded (e.g. custom/turbo
+loader), a Direct Recording block (0x15) is written at 2 MHz sample rate so
+the raw waveform is preserved.  Compatible with Fuse, SpecEmu, ZXSpin,
+RealSpectrum, TZXDuino, and PZX2TZX tools.
+
+**TAP (`--tap`)** — Raw `.tap` block stream, compatible with Fuse `--tape`,
+ZX-Uno, and RetroVirtualMachine.  Only available when ROM blocks are
+successfully decoded; custom loaders should use TZX.
 
 ---
 
@@ -218,7 +311,7 @@ The firmware always outputs 2 MHz-equivalent ticks; the CLI scales them to the c
 
 ### Timing
 
-1. A GPIO ISR fires on every pulse boundary (`FALLING` for standard, `CHANGE` for Novaload).
+1. A GPIO ISR fires on every pulse boundary (`FALLING` for standard, `CHANGE` for Novaload/Spectrum).
 2. `ESP.getCycleCount()` is sampled inside the ISR — an 80 MHz hardware counter.
 3. The delta between consecutive calls is divided by 40 to produce a 2 MHz tick unit.
 4. Ticks are clamped to 24 bits and pushed into a 4096-entry ring buffer.
@@ -235,53 +328,44 @@ Device is Wemos D1 ESP, Host is the Linux host where `tapeosaurus.py` is run.
 
 **Device → Host:**
 
-| Frame | Bytes | Meaning |
-|-------|-------|---------|
-| Pulse data | `[B0][B1][B2][B0^B1^B2]` | 24-bit tick count, 2 MHz clock, LSB first |
-| PLAY pressed | `[00][00][00][01]` | Tape started — begin recording |
-| PLAY released | `[00][00][00][02]` | Tape stopped — end recording |
-| Overflow | `[00][00][00][03]` | Ring buffer full, data lost |
-| Edge mode change | `[00][00][00][04]` | Confirmation: edge-mode changed |
+| Frame            | Bytes                    | Meaning                                   |
+| ---------------- | ------------------------ | ----------------------------------------- |
+| Pulse data       | `[B0][B1][B2][B0^B1^B2]` | 24-bit tick count, 2 MHz clock, LSB first |
+| PLAY pressed     | `[00][00][00][01]`       | Tape started — begin recording            |
+| PLAY released    | `[00][00][00][02]`       | Tape stopped — end recording              |
+| Overflow         | `[00][00][00][03]`       | Ring buffer full, data lost               |
+| Edge mode change | `[00][00][00][04]`       | Confirmation: edge-mode changed           |
 
 **Host → Device:**
 
-| Frame | Bytes | Meaning |
-|-------|-------|---------|
+| Frame       | Bytes              | Meaning                                  |
+| ----------- | ------------------ | ---------------------------------------- |
 | Set FALLING | `[FF][FF][FF][10]` | Switch to FALLING edge (standard KERNAL) |
-| Set CHANGE | `[FF][FF][FF][11]` | Switch to CHANGE edge (Novaload / turbo) |
-
-Command byte ranges are non-overlapping: `0x01–0x04` device-to-host, `0x10–0x11` host-to-device. A stray echo of a SET command can never be mistaken for a PLAY event.
-
-Control frames are unambiguous from pulse data: the only data frame that starts with three zero bytes would have checksum `0x00`, which is never a valid CMD byte.
-
-### Edge mode negotiation
-
-When the ESP receives a SET command it immediately reattaches the interrupt with the new edge polarity and echoes back `CMD_EDGE_FALLING` or `CMD_EDGE_CHANGE` as confirmation. The CLI waits up to 3 seconds for this echo before proceeding.
-
-The ESP also re-echoes the active mode on every PLAY press — immediately before `CMD_PLAY_PRESSED` — so the host always knows the active mode before any pulse data arrives, and the terminal shows a per-tape confirmation.
-
-The 4-byte receive state machine in the ESP's `loop()` re-aligns naturally after a lost byte — the next valid `[FF][FF][FF][CMD]` frame will be caught after at most 3 bytes of drift, with no explicit framing header needed.
+| Set CHANGE  | `[FF][FF][FF][11]` | Switch to CHANGE edge (Novaload / Spectrum / turbo) |
 
 ---
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---------|-------------|-----|
-| `⚠  No echo from device` at startup | ESP not ready or baud mismatch | Check baud is 250 000 in both CLI and Arduino IDE; power-cycle the Wemos |
-| 0 pulses captured | READ wiring or wrong edge mode | Set `CAPTURE_WITHOUT_SENSE 1` to test READ independently; verify `--novaload` flag matches tape type |
-| Novaload tape loads garbled | Edge mode mismatch | Ensure `--novaload` is passed for turbo tapes |
-| Frame error: timeout before tape starts | Normal — motor spin-up gap | CLI tolerates 30 s of silence before stopping |
-| Motor doesn't spin / spins wrong speed | MP1584EN-U3 not calibrated | Set to 6.10–6.15 V with a multimeter before connecting |
-| Overflow LED lights up | Buffer draining too slowly | Check baud is 250 000; close other apps using the port |
-| Garbled timing | CPU not at 80 MHz | Check board settings in Arduino IDE |
-| Datasette not powering on | MP1584EN-U2 not calibrated | Verify 5 V output before connecting Datasette |
+| Symptom                                 | Likely cause                   | Fix                                                                                                  |
+| --------------------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `⚠ No echo from device` at startup     | ESP not ready or baud mismatch | Check baud is 250 000 in both CLI and Arduino IDE; power-cycle the Wemos                             |
+| 0 pulses captured                       | READ wiring or wrong edge mode | Set `CAPTURE_WITHOUT_SENSE 1` to test READ independently; verify `--novaload` flag matches tape type |
+| Novaload tape loads garbled             | Edge mode mismatch             | Ensure `--novaload` is passed for turbo tapes                                                        |
+| Frame error: timeout before tape starts | Normal — motor spin-up gap     | CLI tolerates 30 s of silence before stopping                                                        |
+| Motor doesn't spin / spins wrong speed  | MP1584EN-U3 not calibrated     | Set to 6.10–6.15 V with a multimeter before connecting                                               |
+| Overflow LED lights up                  | Buffer draining too slowly     | Check baud is 250 000; close other apps using the port                                               |
+| Garbled timing                          | CPU not at 80 MHz              | Check board settings in Arduino IDE                                                                  |
+| Datasette not powering on               | MP1584EN-U2 not calibrated     | Verify 5 V output before connecting Datasette                                                        |
+| Spectrum: no blocks decoded             | Custom/turbo loader            | TZX Direct Recording block is still written — use tzxtools or PlayTZX to play it back               |
+| Spectrum: bad checksum warnings         | Worn tape or level mismatch    | Try adjusting the EAR volume on the source device; increase divider tolerance                        |
+| Spectrum: SENSE never fires             | No SENSE wiring                | Compile with `CAPTURE_WITHOUT_SENSE 1` for Spectrum use                                              |
 
 ---
 
 ## Tested tapes
 
-Here's a list of successfully [tested tapes](/TAPES.md).
+Here's a list of successfully [tested tapes](TAPES.md).
 
 ---
 
@@ -293,4 +377,4 @@ Inspired by [TrueTape64](https://github.com/francescovannini/truetape64) by Fran
 
 ---
 
-*Made for the Commodore preservation community · Long live the Datasette 🖤*
+*Made for the Commodore and Spectrum preservation community · Long live the Datasette 🖤*
