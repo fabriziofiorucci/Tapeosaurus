@@ -10,6 +10,14 @@ Supports C16/Plus4 standard tape and Novaload turbo, Commodore 64/128 tapes, and
 
 ---
 
+## Supported tapes
+
+* Commodore 16 & Plus4
+* Commodore 64 & 128
+* Spectrum
+
+---
+
 ## Hardware
 
 ### What you need
