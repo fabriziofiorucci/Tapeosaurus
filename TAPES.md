@@ -1,5 +1,10 @@
 ## Tested tapes
 
+Tapes successfully dumped and tested with:
+
+* VICE, the [Versatile Commodore Emulator](https://vice-emu.sourceforge.io/)
+* FUSE, the [Free Unix Spectrum Emulator](https://fuse-emulator.sourceforge.net)
+
 ### Commodore 16 & Plus/4
 
 | Name                           | Publisher        | Turbo tape |
@@ -19,9 +24,16 @@
 
 ### Commodore 64/128
 
-| Name                           | Publisher        | Turbo tape |
-|--------------------------------|------------------|------------|
-| Bomber                         |                  | Yes        |
-| Treasure Island                | Mr.Micro         | Yes        |
+| Name                           | Publisher                | Turbo tape |
+|--------------------------------|--------------------------|------------|
+| BMX Kidz                       | Firebird Software        | Yes        |
+| Bomber                         |                          | Yes        |
+| Stratton                       | Computer Rentals Limited | Yes        |
+| Treasure Island                | Mr.Micro                 | Yes        |
+| War Cars Construction Set      | Firebird Software        | Yes        |
 
-These were tested with VICE, the [Versatile Commodore Emulator](https://vice-emu.sourceforge.io/)
+### ZX Spectrum
+
+| Name                           | Publisher                | Turbo tape |
+|--------------------------------|--------------------------|------------|
+| Spectrum Advanced Graphics     | McGraw-Hill              |            |
