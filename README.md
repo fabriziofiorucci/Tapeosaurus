@@ -35,6 +35,12 @@ Supports C16/Plus4 standard tape and Novaload turbo, Commodore 64/128 tapes, and
 
 ### ZX Spectrum hardware notes
 
+#### Using a Commodore tape player
+
+Spectrum tapes can be dumped using a Commodore datasette, no firmware changes required.
+
+#### Using a standard tape player
+
 The Spectrum EAR socket outputs a 5 V audio signal (not TTL).  The same
 **10 kΩ / 20 kΩ voltage divider** used for the Commodore READ line is suitable
 here — connect the EAR tip to the divider input and the sleeve to GND.
