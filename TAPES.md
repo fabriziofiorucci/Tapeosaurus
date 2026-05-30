@@ -11,14 +11,17 @@ Tapes successfully dumped and tested with:
 |--------------------------------|------------------|------------|
 | Blagger                        | Amsoft           |            |
 | BMX Racers                     | Mastertronic     | Novaload   |
+| Centipede                      | Tynesoft         |            |
 | Formula 1 Simulator            | Mastertronic     | Novaload   |
+| Joe Blade II                   | Players          |            |
 | Kane                           | Mastertronic     | Novaload   |
 | Lawn Tennis                    | Tynesoft         |            |
 | Master Chess                   | Mastertronic     | Novaload   |
 | Olympiad                       | Tynesoft         |            |
 | Pin Point                      | Anco Software    | Novaload   |
 | P.O.D.                         | Mastertronic     | Novaload   |
-| Space Mission                  | Mr.Soft          |            |
+| Rig Attack                     | Tynesoft         |            |
+| Space Mission                  | Tynesoft         |            |
 | Street Olympics                | Mastertronic     | Novaload   |
 | Sword of Destiny               | Gremlin Graphics | Novaload   |
 | The Way of the Exploding Fist  | Mastertronic     | Novaload   |
