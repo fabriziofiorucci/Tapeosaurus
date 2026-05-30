@@ -28,7 +28,11 @@ Tapes successfully dumped and tested with:
 |--------------------------------|--------------------------|------------|
 | BMX Kidz                       | Firebird Software        | Yes        |
 | Bomber                         |                          | Yes        |
+| Rastan                         | Imagine Software         | Yes        |
+| Mandroid                       | Computer Rentals Limited | Yes        |
 | Stratton                       | Computer Rentals Limited | Yes        |
+| S.M.A.S.H.E.D.                 | Alternative Software     | Yes        |
+| Thunder Force                  | Rack-it                  | Yes        |
 | Treasure Island                | Mr.Micro                 | Yes        |
 | War Cars Construction Set      | Firebird Software        | Yes        |
 
