@@ -27,6 +27,7 @@ Tapes successfully dumped and tested with:
 | Name                           | Publisher                | Turbo tape |
 |--------------------------------|--------------------------|------------|
 | BMX Kidz                       | Firebird Software        | Yes        |
+| Bocce                          | Simulmondo               | Yes        |
 | Bomber                         |                          | Yes        |
 | Rastan                         | Imagine Software         | Yes        |
 | Mandroid                       | Computer Rentals Limited | Yes        |
