@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Tapeosaurus — C16/Plus4, C64 and ZX Spectrum TAP/TZX capture + extraction
+Tapeosaurus — C16/Plus4, C64, ZX Spectrum and MSX TAP/TZX/CAS capture + extraction
 
 Usage:
   python3 tapeosaurus.py -p /dev/ttyUSB0 out.tap
@@ -10,6 +10,8 @@ Usage:
   python3 tapeosaurus.py -p /dev/ttyUSB0 -model c16 --novaload out.tap   (C16 only)
   python3 tapeosaurus.py -p /dev/ttyUSB0 -model spectrum out.tzx
   python3 tapeosaurus.py -p /dev/ttyUSB0 -model spectrum --tap out.tap
+  python3 tapeosaurus.py -p /dev/ttyUSB0 -model msx out.cas
+  python3 tapeosaurus.py -p /dev/ttyUSB0 -model msx --baud 2400 out.cas
 
 Edge mode is negotiated automatically:
   --novaload → sends HOST_CMD_CHANGE (CHANGE interrupt, both edges) — C16 only
@@ -21,6 +23,7 @@ Model selection:
   -model c16       (default) C16 / Plus4 standard or Novaload
   -model c64                 C64 standard KERNAL tape (non-turbo)
   -model spectrum            ZX Spectrum standard ROM tape
+  -model msx                 MSX standard tape (FSK Kansas City Standard, 1200 or 2400 baud)
 
 ZX Spectrum notes:
   The Spectrum uses CHANGE (both edges) for its ROM loader — the edge mode
@@ -161,6 +164,76 @@ SPECTRUM_HDR_NUMARRAY = 0x01
 SPECTRUM_HDR_CHARARRAY= 0x02
 SPECTRUM_HDR_CODE     = 0x03
 
+# ===========================================================================
+# MSX tape constants (Kansas City Standard / FSK)
+# ---------------------------------------------------------------------------
+#
+# MSX uses a variant of the Kansas City Standard (KCS) FSK encoding.
+# The signal is captured in CHANGE mode (both edges), so each firmware tick
+# interval represents a half-cycle of the carrier tone.
+#
+# The MSX BIOS uses a Z80 software delay loop rather than a fixed-frequency
+# oscillator, so the actual pulse widths differ from pure KCS frequencies.
+# At 1200 baud (default, from openMSX / MSX Technical Handbook):
+#   Bit 0 → one  long  half-cycle at ~512 Hz  →  half-period ≈  976 µs ≈ 1952 firmware ticks
+#   Bit 1 → two short half-cycles at ~1024 Hz →  half-period ≈  488 µs ≈  976 firmware ticks
+#
+# At 2400 baud (high-speed mode used by some software):
+#   Bit 0 → one  long  half-cycle at ~1024 Hz →  half-period ≈  488 µs ≈  976 firmware ticks
+#   Bit 1 → two short half-cycles at ~2048 Hz →  half-period ≈  244 µs ≈  488 firmware ticks
+#
+# Framing: 1 start bit (0), 8 data bits LSB-first, 2 stop bits (1)
+#
+# A "long" header tone is at the bit-1 frequency for ~6.7 seconds before
+# the 8-byte CAS sync marker: 1F A6 DE BA CC 13 7D 74
+# A "short" header is ~1.7 seconds of the bit-1 frequency.
+#
+# File type markers (10 bytes each, following the CAS sync header):
+#   D3 D3 D3 D3 D3 D3 D3 D3 D3 D3  BASIC tokenised
+#   EA EA EA EA EA EA EA EA EA EA  ASCII / TEXT
+#   D0 D0 D0 D0 D0 D0 D0 D0 D0 D0  Binary / machine code (BSAVE)
+#
+# Header record: 6-byte filename (space-padded), followed by file-type-specific
+# fields (start address, end address, entry address for binary files).
+# ===========================================================================
+
+MSX_CAS_SYNC  = bytes([0x1F, 0xA6, 0xDE, 0xBA, 0xCC, 0x13, 0x7D, 0x74])
+
+MSX_TYPE_BASIC  = 0xD3   # tokenised BASIC
+MSX_TYPE_ASCII  = 0xEA   # ASCII / text
+MSX_TYPE_BINARY = 0xD0   # BSAVE binary / machine code
+
+MSX_TYPE_NAMES = {
+    MSX_TYPE_BASIC:  "BASIC",
+    MSX_TYPE_ASCII:  "ASCII",
+    MSX_TYPE_BINARY: "Binary",
+}
+
+# Half-cycle duration thresholds in firmware 2 MHz ticks.
+# We detect a bit by examining the mean half-cycle length within a burst:
+#   bit 1 → short half-cycles (high frequency)
+#   bit 0 → long half-cycles  (low frequency)
+# Threshold is set at the geometric mean of the two expected values.
+#
+# 1200 baud: bit1 half ≈ 976 ticks, bit0 half ≈ 1952 ticks → threshold ≈ 1464
+# 2400 baud: bit1 half ≈ 488 ticks, bit0 half ≈  976 ticks → threshold ≈  732
+# Thresholds derived from observed real hardware captures.
+# At 1200 baud the two half-period clusters sit at ~430 ticks (bit-1, short)
+# and ~840 ticks (bit-0, long), with a clean gap between 600 and 700 ticks.
+# Threshold 649 sits in the middle of that gap and is robust to ±15% speed variation.
+#   1200 baud: bit-1 short cluster ≈ 350–600 ticks  (~225 µs half-period)
+#              bit-0 long  cluster ≈ 700–1000 ticks (~425 µs half-period)
+#   2400 baud: half the durations → threshold ≈ 322
+MSX_BIT_THRESHOLD_1200 = 649   # ticks — below: bit 1,  above: bit 0
+MSX_BIT_THRESHOLD_2400 = 322   # ticks — below: bit 1,  above: bit 0
+
+# Minimum number of consecutive bit-1 half-pulses to qualify as a header tone
+MSX_HEADER_MIN_PULSES = 200
+
+# The 8-byte CAS sync word, transmitted MSB-first with KCS framing
+# MSX_SYNC_BYTES: used only when WRITING .cas output files, not present on physical tape
+MSX_SYNC_BYTES = [0x1F, 0xA6, 0xDE, 0xBA, 0xCC, 0x13, 0x7D, 0x74]
+
 # TZX constants
 TZX_SIGNATURE = b"ZXTape!"
 TZX_EOF_MARKER = 0x1A
@@ -177,6 +250,284 @@ TZX_BLOCK_DIRECT      = 0x15   # Direct Recording Block
 TZX_BLOCK_TEXT_DESC   = 0x30   # Text Description (used for info comments)
 TZX_BLOCK_ARCHIVE     = 0x32   # Archive Info
 
+
+# ===========================================================================
+# MSX tape decoder — FSK / Kansas City Standard
+# ===========================================================================
+#
+# The MSX ROM loader uses CHANGE (both-edge) interrupt sampling, so the
+# firmware delivers one tick value per signal edge (half-cycle boundary).
+# We convert firmware 2 MHz ticks to microseconds and classify each
+# half-cycle as belonging to a "short" (bit-1 carrier) or "long" (bit-0
+# carrier) burst.
+#
+# Decoding strategy:
+#   1. Scan for the header tone: a long run of consecutive "short"
+#      half-pulses (bit-1 frequency).
+#   2. After the header, detect the 8-byte CAS sync word.
+#   3. Decode bytes (1 start bit + 8 data bits LSB-first + 2 stop bits)
+#      until the signal ends.
+#   4. Repeat from step 1 for the next block (short-header delimiter).
+# ===========================================================================
+
+def _msx_half_pulse_to_bit(ticks, threshold):
+    return 1 if ticks < threshold else 0
+
+
+def _msx_decode_byte(pulses, pos, threshold):
+    """Decode one KCS byte (start + 8 data bits LSB-first + 2 stop) from pulses[pos].
+    Returns (byte_value, next_pos) or (None, pos) on failure."""
+    n = len(pulses)
+
+    def read_bit(i):
+        if i >= n:
+            return None, i
+        bit = _msx_half_pulse_to_bit(pulses[i], threshold)
+        count = 4 if bit == 1 else 2
+        j = i + count
+        if j > n:
+            j = n
+        return bit, j
+
+    start_bit, p = read_bit(pos)
+    if start_bit is None or start_bit != 0:
+        return None, pos
+    bv = 0
+    for bi in range(8):
+        b, p = read_bit(p)
+        if b is None:
+            return None, pos
+        bv |= b << bi
+    # consume stop bits (don't fail if missing at end of tape)
+    for _ in range(2):
+        b, p = read_bit(p)
+        if b is None:
+            break
+    return bv, p
+
+
+def _msx_find_header(pulses, scan_from, threshold, min_pulses):
+    """Find a run of >= min_pulses consecutive short (bit-1) half-pulses.
+    Returns index of first pulse AFTER the run, or -1."""
+    n = len(pulses)
+    i = scan_from
+    while i < n:
+        if _msx_half_pulse_to_bit(pulses[i], threshold) == 1:
+            j = i
+            while j < n and _msx_half_pulse_to_bit(pulses[j], threshold) == 1:
+                j += 1
+            if j - i >= min_pulses:
+                return j
+            i = j + 1
+        else:
+            i += 1
+    return -1
+
+
+def extract_msx_blocks(pulses, baud=1200):
+    """Decode MSX KCS tape blocks from the raw firmware pulse stream.
+
+    MSX tape structure (per block):
+      [header tone: long run of bit-1 pulses]
+      [header record: 10x type-marker + 6-char filename + type-specific fields]
+      [short header tone: shorter run of bit-1 pulses]
+      [data body: raw payload bytes]
+
+    Returns a list of dicts with keys: type_byte, type_name, filename, data, block_idx.
+    Consecutive pairs of raw blocks are matched as (header_record, data_body).
+    """
+    threshold = MSX_BIT_THRESHOLD_1200 if baud == 1200 else MSX_BIT_THRESHOLD_2400
+
+    # ── Phase 1: decode all raw blocks ──────────────────────────────────────
+    raw_blocks = []
+    scan_pos   = 0
+
+    while scan_pos < len(pulses):
+        after_header = _msx_find_header(pulses, scan_pos, threshold, MSX_HEADER_MIN_PULSES)
+        if after_header < 0:
+            break
+
+        pos        = after_header
+        data       = bytearray()
+        n          = len(pulses)
+        fail_streak = 0
+
+        while pos < n:
+            if _msx_half_pulse_to_bit(pulses[pos], threshold) == 1:
+                j = pos
+                while j < n and _msx_half_pulse_to_bit(pulses[j], threshold) == 1:
+                    j += 1
+                if j - pos >= 500:
+                    break
+                pos = j
+                continue
+
+            b, next_pos = _msx_decode_byte(pulses, pos, threshold)
+            if b is None:
+                fail_streak += 1
+                if fail_streak > 20:
+                    break
+                pos += 1
+                continue
+
+            fail_streak = 0
+            data.append(b)
+            pos = next_pos
+
+        if data:
+            raw_blocks.append(bytes(data))
+        scan_pos = pos if pos > after_header else after_header + 1
+
+    # ── Phase 2: classify and pair blocks ───────────────────────────────────
+    # Each file on tape is two raw blocks: a header record followed by a data body.
+    # The header record starts with 10 identical type-marker bytes.
+    # The data body follows immediately (next raw block).
+    blocks    = []
+    block_idx = 0
+    i         = 0
+
+    while i < len(raw_blocks):
+        data = raw_blocks[i]
+
+        # Detect type marker: look for 5+ identical bytes of a known type at start
+        type_byte = None
+        for candidate in (MSX_TYPE_BASIC, MSX_TYPE_ASCII, MSX_TYPE_BINARY):
+            if len(data) >= 5 and all(x == candidate for x in data[:5]):
+                type_byte = candidate
+                break
+
+        if type_byte is not None:
+            # This is a header record — pair with the next raw block (data body)
+            type_name = MSX_TYPE_NAMES.get(type_byte, f"Unknown({type_byte:#04x})")
+            filename  = None
+            if len(data) >= 16:
+                filename = data[10:16].rstrip(b"\x00\x20").decode("ascii", errors="replace")
+
+            # Append header record block
+            blocks.append({
+                "type_byte": type_byte,
+                "type_name": type_name,
+                "filename":  filename,
+                "data":      data,
+                "block_idx": block_idx,
+                "role":      "header",
+            })
+            block_idx += 1
+            i += 1
+
+            # Append data body block if present
+            if i < len(raw_blocks):
+                body = raw_blocks[i]
+                blocks.append({
+                    "type_byte": type_byte,
+                    "type_name": type_name,
+                    "filename":  filename,
+                    "data":      body,
+                    "block_idx": block_idx,
+                    "role":      "data",
+                })
+                block_idx += 1
+                i += 1
+        else:
+            # Unrecognised block — include as-is
+            type_byte = data[0] if data else 0xFF
+            blocks.append({
+                "type_byte": type_byte,
+                "type_name": MSX_TYPE_NAMES.get(type_byte, f"Unknown({type_byte:#04x})"),
+                "filename":  None,
+                "data":      data,
+                "block_idx": block_idx,
+                "role":      "unknown",
+            })
+            block_idx += 1
+            i += 1
+
+    return blocks
+
+
+def build_msx_cas(blocks):
+    """
+    Build an MSX .cas byte string from decoded blocks.
+
+    Each block is preceded by the 8-byte CAS sync header.
+    If blocks is empty, returns an empty bytes object.
+
+    The raw data from each block (including the type-marker bytes and filename)
+    is written verbatim so the .cas file is byte-for-byte compatible with
+    openMSX, fMSX, CASDuino, and wav2cas.
+    """
+    cas = bytearray()
+    for blk in blocks:
+        cas += MSX_CAS_SYNC
+        cas += blk["data"]
+    return bytes(cas)
+
+
+def print_msx_blocks(blocks):
+    """Pretty-print decoded MSX tape blocks."""
+    print()
+    for blk in blocks:
+        idx   = blk["block_idx"]
+        tname = blk["type_name"]
+        fname = blk["filename"] or "(unnamed)"
+        dlen  = len(blk["data"])
+        role  = blk.get("role", "")
+        role_str = " [header]" if role == "header" else " [data]" if role == "data" else ""
+
+        addr_str = ""
+        if role == "header" and blk["type_byte"] == MSX_TYPE_BINARY:
+            d = blk["data"]
+            if len(d) >= 22:
+                start = d[16] | (d[17] << 8)
+                end   = d[18] | (d[19] << 8)
+                entry = d[20] | (d[21] << 8)
+                addr_str = f"  load=${start:04X} end=${end:04X} entry=${entry:04X}"
+
+        print(f'  Block {idx}: {tname:<8}  "{fname}"{role_str}  ({dlen} bytes){addr_str}')
+    print()
+
+
+def write_msx_output(args, blocks, pulses, output_path):
+    """
+    Write the MSX .cas output file and optionally extract binary/BASIC files.
+    """
+    cas_bytes = build_msx_cas(blocks)
+
+    if cas_bytes:
+        with open(output_path, "wb") as f:
+            f.write(cas_bytes)
+        print(f"✅ CAS written: {output_path} ({len(cas_bytes):,} B)")
+    else:
+        print("⚠  No MSX blocks decoded — CAS file is empty.")
+        print("   Check tape baud rate (try --baud 2400 for high-speed tapes)")
+        return
+
+    if args.prg and blocks:
+        for blk in blocks:
+            # Only extract from data body blocks, not header records
+            if blk.get("role") == "header":
+                continue
+            d     = blk["data"]
+            fname = (blk["filename"] or f"block{blk['block_idx']}").strip()
+            safe  = "".join(c if c.isalnum() or c in "_-" else "_" for c in fname)[:8] or "NONAME"
+
+            if blk["type_byte"] == MSX_TYPE_BINARY:
+                bin_fn = f"{safe}.bin"
+                with open(bin_fn, "wb") as f:
+                    f.write(d)
+                print(f"  ✅ BIN: {bin_fn} ({len(d)} B)")
+
+            elif blk["type_byte"] == MSX_TYPE_BASIC:
+                bas_fn = f"{safe}.bas"
+                with open(bas_fn, "wb") as f:
+                    f.write(d)
+                print(f"  ✅ BAS: {bas_fn} ({len(d)} B)")
+
+            elif blk["type_byte"] == MSX_TYPE_ASCII:
+                asc_fn = f"{safe}.asc"
+                with open(asc_fn, "wb") as f:
+                    f.write(d)   # fixed: was 'payload' (undefined); now correctly 'd'
+                print(f"  ✅ ASC: {asc_fn} ({len(d)} B)")
 
 # ===========================================================================
 # TAP header builders
@@ -1116,19 +1467,21 @@ def write_spectrum_output(args, decoded_blocks, pulses, output_path):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Tapeosaurus — C16/Plus4, C64 and ZX Spectrum TAP/TZX capture"
+        description="Tapeosaurus — C16/Plus4, C64, ZX Spectrum and MSX TAP/TZX/CAS capture"
     )
     parser.add_argument("-p", "--port",  required=True, help="Serial port")
     parser.add_argument("output",        nargs="?", default=None,
-                        help="Output file (.tap for C16/C64, .tzx or .tap for Spectrum)")
+                        help="Output file (.tap for C16/C64, .tzx or .tap for Spectrum, .cas for MSX)")
     parser.add_argument("--novaload",    action="store_true",
                         help="Novaload turbo mode (CHANGE edge + skip KERNAL decoder) — C16 only")
     parser.add_argument("--ntsc", "-v",  action="store_true", help="NTSC clock instead of PAL (C16/C64 only)")
     parser.add_argument("--prg",         action="store_true",
                         help="Extract PRG/BIN files from decoded blocks")
-    parser.add_argument("-model",        choices=["c16", "c64", "spectrum"], default="c16",
+    parser.add_argument("-model",        choices=["c16", "c64", "spectrum", "msx"], default="c16",
                         dest="model",
-                        help="Target computer: c16 (default), c64, or spectrum")
+                        help="Target computer: c16 (default), c64, spectrum, or msx")
+    parser.add_argument("--baud",        type=int, choices=[1200, 2400], default=1200,
+                        help="MSX tape baud rate: 1200 (default) or 2400")
     parser.add_argument("--tap",         action="store_true", dest="spectrum_tap",
                         help="Write .tap instead of .tzx (Spectrum model only)")
     args = parser.parse_args()
@@ -1145,19 +1498,34 @@ def main():
         print("⚠  --novaload is not supported for -model spectrum; ignoring")
         args.novaload = False
 
+    # --novaload is meaningless for MSX
+    if args.novaload and model == "msx":
+        print("⚠  --novaload is not supported for -model msx; ignoring")
+        args.novaload = False
+
     # --ntsc is meaningless for Spectrum (fixed 3.5 MHz clock)
     if args.ntsc and model == "spectrum":
         print("⚠  --ntsc has no effect for -model spectrum (Spectrum clock is always 3.5 MHz)")
+
+    # --ntsc is meaningless for MSX (uses its own fixed clock)
+    if args.ntsc and model == "msx":
+        print("⚠  --ntsc has no effect for -model msx")
 
     # --spectrum-tap outside spectrum model
     if args.spectrum_tap and model != "spectrum":
         print("⚠  --tap is only meaningful for -model spectrum; ignoring")
         args.spectrum_tap = False
 
+    # --baud outside msx model
+    if args.baud != 1200 and model != "msx":
+        print("⚠  --baud is only meaningful for -model msx; ignoring")
+
     # Default output filename
     if args.output is None:
         if model == "spectrum" and not args.spectrum_tap:
             args.output = "out.tzx"
+        elif model == "msx":
+            args.output = "out.cas"
         else:
             args.output = "out.tap"
 
@@ -1170,6 +1538,12 @@ def main():
         machine_hz = C64_NTSC_HZ if args.ntsc else C64_PAL_HZ
         scale      = machine_hz / FIRMWARE_HZ
         video_str  = "NTSC" if args.ntsc else "PAL"
+    elif model == "msx":
+        # MSX uses a 3.58 MHz Z80 clock (NTSC standard); timing is derived
+        # from firmware ticks via the KCS decoder rather than a clock scale.
+        machine_hz = FIRMWARE_HZ   # not used for MSX TAP encoding
+        scale      = 1.0
+        video_str  = f"{args.baud} baud"
     else:
         machine_hz = C16_NTSC_HZ if args.ntsc else C16_PAL_HZ
         scale      = machine_hz / FIRMWARE_HZ
@@ -1179,11 +1553,14 @@ def main():
         "c64":      "C64",
         "c16":      "C16/Plus4" + (" Novaload" if args.novaload else ""),
         "spectrum": "ZX Spectrum",
+        "msx":      "MSX",
     }[model]
 
     if model == "spectrum":
         out_fmt = ".tap" if args.spectrum_tap else ".tzx"
         print(f"{mode_label} — {machine_hz / 1e6:.1f} MHz — output: {out_fmt}")
+    elif model == "msx":
+        print(f"{mode_label} — {video_str} — output: .cas")
     else:
         print(f"{mode_label} {video_str} — scale: {scale:.6f}")
     print(f"Capturing → {args.output}")
@@ -1203,7 +1580,8 @@ def main():
     #   C16 Novaload → CHANGE
     #   C64          → FALLING
     #   Spectrum     → CHANGE (ROM loader samples both edges)
-    use_change = (model == "c16" and args.novaload) or (model == "spectrum")
+    #   MSX          → CHANGE (KCS FSK uses both edges)
+    use_change = (model == "c16" and args.novaload) or (model == "spectrum") or (model == "msx")
     send_edge_command(ser, use_change=use_change)
 
     reader   = FrameReader(ser)
@@ -1233,7 +1611,7 @@ def main():
                 timeout_streak = 0
                 if val > 0:
                     pulses.append(val)
-                    if model != "spectrum":
+                    if model not in ("spectrum", "msx"):
                         tap_data += encode_pulse(val, scale)
                     pulse_count += 1
                     if pulse_count % 5000 == 0:
@@ -1293,6 +1671,29 @@ def main():
 
         print(f"💡 Spectrum TZX compatible with: Fuse, SpecEmu, ZXSpin, TZXDuino")
         print(f"💡 Full decode: tzxtools --info {args.output}")
+
+    elif model == "msx":
+        # -------------------------------------------------------------------
+        # MSX KCS / CAS path
+        # -------------------------------------------------------------------
+        print("🔍 Decoding MSX tape blocks...")
+
+        msx_blocks = extract_msx_blocks(pulses, baud=args.baud)
+
+        if msx_blocks:
+            print_msx_blocks(msx_blocks)
+        else:
+            print(f"  ⚠  No MSX blocks decoded.")
+            print(f"  Check baud rate (used: {args.baud}); try --baud 2400 for high-speed tapes.")
+            print("  Ensure the EAR output of the tape player is connected to the READ pin.")
+
+        write_msx_output(args, msx_blocks, pulses, args.output)
+
+        if overflow:
+            print("⚠  Buffer overflow — data may be incomplete")
+
+        print(f"💡 CAS compatible with: openMSX, fMSX, BlueMSX, CASDuino, TZXDuino")
+        print(f"💡 Full decode: cas2wav {args.output} | sox - output.wav")
 
     elif model == "c64":
         # -------------------------------------------------------------------

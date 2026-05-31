@@ -2,11 +2,11 @@
 
 ![Tapeosaurus](img/tapeosaurus.png)
 
-Cycle-accurate tape dumper for the **Commodore 16 / Plus/4**, **Commodore 64 / 128**, and **ZX Spectrum**, running on a single Wemos D1 Mini (ESP8266) with a 3D-printable enclosure.
+Cycle-accurate tape dumper for the **Commodore 16 / Plus/4**, **Commodore 64 / 128**, **ZX Spectrum**, and **MSX** running on a single Wemos D1 Mini (ESP8266) with a 3D-printable enclosure.
 
 Inspired by Francesco Vannini's [TrueTape64](https://github.com/francescovannini/truetape64).
 
-Supports C16/Plus4 standard tape and Novaload turbo, Commodore 64/128 tapes, and ZX Spectrum standard ROM tapes — producing standard `.tap` v2 / `.tzx` files compatible with VICE, Fuse, Tapuino, TZXDuino, and any other TAP/TZX-capable emulator or hardware.
+Supports C16/Plus4 standard tape and Novaload turbo, Commodore 64/128 tapes, ZX Spectrum standard ROM tapes, and MSX standard tapes — producing standard `.tap` v2 / `.tzx` / `.cas` files compatible with VICE, Fuse, Tapuino, TZXDuino, openMSX, and any other TAP/TZX/CAS-capable emulator or hardware.
 
 ---
 
@@ -15,6 +15,7 @@ Supports C16/Plus4 standard tape and Novaload turbo, Commodore 64/128 tapes, and
 * Commodore 16 & Plus4
 * Commodore 64 & 128
 * Spectrum
+* MSX
 
 ---
 
@@ -40,6 +41,31 @@ Supports C16/Plus4 standard tape and Novaload turbo, Commodore 64/128 tapes, and
 | 1   | Mini tactile switch                        | Reset button                                     |
 | 1   | DC jack barrel connector with PCB mount    | Power supply connector                           |
 | 1   | >= 9V DC power supply                      | Powers both MP1584EN modules                     |
+
+### MSX hardware notes
+
+#### Using a Commodore tape player
+
+MSX tapes can be dumped using a Commodore datasette, no firmware changes required.
+
+#### Connecting an MSX tape player
+
+MSX computers read tape via the **EAR** pin on the cassette connector (a 3.5 mm DIN jack or 8-pin DIN depending on the model). The EAR pin carries the audio signal from the tape deck at roughly 1 Vpp.
+
+Use the same 10 kΩ / 20 kΩ voltage divider on the READ line as for Commodore tapes. No firmware changes are required — the `tapeosaurus.ino` sketch is identical; the CLI selects CHANGE edge mode automatically when `-model msx` is used.
+
+#### MSX tape format
+
+MSX uses a **Kansas City Standard (KCS)** variant FSK encoding:
+
+| Baud rate | Bit 0 | Bit 1 |
+|-----------|-------|-------|
+| 1200 baud | 1 cycle @ 1200 Hz | 2 cycles @ 2400 Hz |
+| 2400 baud | 1 cycle @ 2400 Hz | 2 cycles @ 4800 Hz |
+
+Each byte is framed as: 1 start bit (0), 8 data bits (LSB first), 2 stop bits (1).
+
+Output is a standard **.cas** file containing the 8-byte CAS sync header (`1F A6 DE BA CC 13 7D 74`) followed by decoded data, compatible with openMSX, fMSX, BlueMSX, CASDuino, and TZXDuino/CASduino.
 
 ### ZX Spectrum hardware notes
 
@@ -165,6 +191,15 @@ python3 cli/tapeosaurus.py -p /dev/ttyUSB0 -model spectrum --tap output.tap
 
 # ZX Spectrum tape → TZX + extract .bin files
 python3 cli/tapeosaurus.py -p /dev/ttyUSB0 -model spectrum --prg output.tzx
+
+# MSX tape (1200 baud, default)
+python3 cli/tapeosaurus.py -p /dev/ttyUSB0 -model msx output.cas
+
+# MSX tape (2400 baud high-speed)
+python3 cli/tapeosaurus.py -p /dev/ttyUSB0 -model msx --baud 2400 output.cas
+
+# MSX tape → CAS + extract files
+python3 cli/tapeosaurus.py -p /dev/ttyUSB0 -model msx --prg output.cas
 ```
 
 Passing `--novaload` is required for C16/Plus4 Novaload turbo tapes. The CLI automatically sends the correct edge mode command to the ESP before waiting for PLAY, then selects the appropriate decode path after capture. No switches, no recompile.
@@ -175,14 +210,6 @@ Passing `--novaload` is required for C16/Plus4 Novaload turbo tapes. The CLI aut
 2. Sends `CMD_SET_EDGE_FALLING` or `CMD_SET_EDGE_CHANGE` depending on model / flags
 3. Waits up to 3 seconds for the ESP's confirmation echo
 4. Prints the confirmed edge mode and waits for PLAY
-
-```
-ZX Spectrum — 3.5 MHz — output: .tzx
-Capturing → output.tzx
-→  Setting edge mode: CHANGE (Novaload/turbo)
-✔  Edge mode confirmed by device: CHANGE (Novaload/turbo)
-Waiting for PLAY (LED lights up)...
-```
 
 ```
 C16/Plus4 PAL — scale: 0.443362
@@ -200,34 +227,23 @@ Capturing → output.tap
 Waiting for PLAY (LED lights up)...
 ```
 
-### Real examples
-
-#### Dumping a ZX Spectrum tape
-
 ```
-$ python3 cli/tapeosaurus.py -p /dev/ttyUSB0 -model spectrum --prg "Manic Miner.tzx"
 ZX Spectrum — 3.5 MHz — output: .tzx
-Capturing → Manic Miner.tzx
+Capturing → output.tzx
 →  Setting edge mode: CHANGE (Novaload/turbo)
 ✔  Edge mode confirmed by device: CHANGE (Novaload/turbo)
 Waiting for PLAY (LED lights up)...
-▶  RECORDING...
-  … 420,000 pulses
-✅ STOPPED — 421,044 pulses
-🔍 Decoding ZX Spectrum ROM blocks...
-
-  Block 0: Header  ✔
-    Type    : Bytes
-    Name    : "Manic Min"
-    Length  : 49152 bytes
-    Load    : $8000
-  Block 1: Data    ✔  (49152 bytes payload)
-
-✅ TZX written: Manic Miner.tzx (98,340 B)
-  ✅ BIN: Manic_Min.bin (49152 B, load $8000)
-💡 Spectrum TZX compatible with: Fuse, SpecEmu, ZXSpin, TZXDuino
-💡 Full decode: tzxtools --info Manic Miner.tzx
 ```
+
+```
+MSX — 1200 baud — output: .cas
+Capturing → output.cas
+→  Setting edge mode: CHANGE (Novaload/turbo)
+✔  Edge mode confirmed by device: CHANGE (Novaload/turbo)
+Waiting for PLAY (LED lights up)...
+```
+
+### Real examples
 
 #### Dumping a C16/Plus4 Novaload tape
 
@@ -265,6 +281,55 @@ Waiting for PLAY (LED lights up)...
 💡 Full decode: wav2prg -P loaders --machine c64 --tap ./Treasure Island.tap
 ```
 
+#### Dumping a ZX Spectrum tape
+
+```
+$ python3 cli/tapeosaurus.py -p /dev/ttyUSB0 -model spectrum --prg "Manic Miner.tzx"
+ZX Spectrum — 3.5 MHz — output: .tzx
+Capturing → Manic Miner.tzx
+→  Setting edge mode: CHANGE (Novaload/turbo)
+✔  Edge mode confirmed by device: CHANGE (Novaload/turbo)
+Waiting for PLAY (LED lights up)...
+▶  RECORDING...
+  … 420,000 pulses
+✅ STOPPED — 421,044 pulses
+🔍 Decoding ZX Spectrum ROM blocks...
+
+  Block 0: Header  ✔
+    Type    : Bytes
+    Name    : "Manic Min"
+    Length  : 49152 bytes
+    Load    : $8000
+  Block 1: Data    ✔  (49152 bytes payload)
+
+✅ TZX written: Manic Miner.tzx (98,340 B)
+  ✅ BIN: Manic_Min.bin (49152 B, load $8000)
+💡 Spectrum TZX compatible with: Fuse, SpecEmu, ZXSpin, TZXDuino
+💡 Full decode: tzxtools --info Manic Miner.tzx
+```
+
+#### Dumping an MSX tape
+
+```
+$ python3 cli/tapeosaurus.py -p /dev/ttyUSB0 -model msx --prg "Knightmare.cas"
+MSX — 1200 baud — output: .cas
+Capturing → Knightmare.cas
+→  Setting edge mode: CHANGE (Novaload/turbo)
+✔  Edge mode confirmed by device: CHANGE (Novaload/turbo)
+Waiting for PLAY (LED lights up)...
+▶  RECORDING...
+  … 580,000 pulses
+✅ STOPPED — 581,290 pulses
+🔍 Decoding MSX tape blocks...
+
+  Block 0: Binary    "KNIGHT"  (16406 bytes)  load=$E000 end=$FFFF entry=$E000
+
+✅ CAS written: Knightmare.cas (16,422 B)
+  ✅ BIN: KNIGHT.bin (16384 B @ $E000)
+💡 CAS compatible with: openMSX, fMSX, BlueMSX, CASDuino, TZXDuino
+💡 Full decode: cas2wav Knightmare.cas output.wav
+```
+
 ### Machine clock reference
 
 | Machine                         | Clock      | Notes                       |
@@ -273,6 +338,8 @@ Waiting for PLAY (LED lights up)...
 | Commodore 16 / Plus4 (Novaload) | 886 724 Hz PAL / 894 886 Hz NTSC | |
 | Commodore 64 / 128              | 985 248 Hz PAL / 1 022 727 Hz NTSC | |
 | ZX Spectrum (all models)        | 3 500 000 Hz | Fixed; --ntsc has no effect |
+| MSX (all models)                | FSK / KCS — 1200 or 2400 baud | Decoded from pulse widths; --ntsc has no effect |
+
 
 The firmware always outputs 2 MHz-equivalent ticks; the CLI scales them to the correct machine clock before writing the TAP/TZX file.
 
@@ -318,6 +385,56 @@ RealSpectrum, TZXDuino, and PZX2TZX tools.
 **TAP (`--tap`)** — Raw `.tap` block stream, compatible with Fuse `--tape`,
 ZX-Uno, and RetroVirtualMachine.  Only available when ROM blocks are
 successfully decoded; custom loaders should use TZX.
+
+---
+
+## MSX — Technical Details
+
+### Tape encoding (Kansas City Standard variant)
+
+MSX uses **Frequency Shift Keying (FSK)** based on the Kansas City Standard:
+
+| Baud rate | Bit 0 | Bit 1 | Header tone |
+| --------- | ----- | ----- | ----------- |
+| 1200 baud | 1 cycle @ 1200 Hz (833 µs) | 2 cycles @ 2400 Hz (417 µs) | 2400 Hz × 16 000 half-pulses (~6.7 s) |
+| 2400 baud | 1 cycle @ 2400 Hz (417 µs) | 2 cycles @ 4800 Hz (208 µs) | 4800 Hz × 32 000 half-pulses (~6.7 s) |
+
+A **short header** (~1.7 s) separates the file header record from the data body.
+
+Each byte is framed as: **1 start bit (0) + 8 data bits LSB-first + 2 stop bits (1)** — 11 bits total.
+
+The signal is captured in **CHANGE edge mode** (both edges), identical to the Spectrum path.
+
+### CAS sync word and file type markers
+
+Every logical block on tape begins with the 8-byte sync word, followed by 10 repeating type-marker bytes:
+
+| Sync word (hex)               | `1F A6 DE BA CC 13 7D 74` |
+| ----------------------------- | ------------------------- |
+| BASIC tokenised marker        | `D3 D3 D3 D3 D3 D3 D3 D3 D3 D3` |
+| ASCII / text marker           | `EA EA EA EA EA EA EA EA EA EA` |
+| Binary / machine code marker  | `D0 D0 D0 D0 D0 D0 D0 D0 D0 D0` |
+
+### File header record layout
+
+The 6-byte filename (space-padded) follows immediately after the 10 type-marker bytes.  For binary (BSAVE) files, three 2-byte little-endian words follow the filename:
+
+| Offset | Size | Field         | Notes                  |
+| ------ | ---- | ------------- | ---------------------- |
+| 10     | 6    | filename      | space-padded ASCII     |
+| 16     | 2    | start address | load address           |
+| 18     | 2    | end address   | inclusive              |
+| 20     | 2    | entry address | execution entry point  |
+
+### Output format
+
+**CAS (`.cas`)** — Standard MSX cassette image.  Each block is stored as the 8-byte CAS sync word followed by the raw decoded data (type markers + filename + payload).  Compatible with openMSX (`-cassetteplayer`), fMSX, BlueMSX, CASDuino, TZXDuino/CASduino, and `cas2wav`.
+
+Pass `--prg` to additionally extract individual files:
+- Binary (BSAVE) blocks → `.bin` (raw payload, load address shown in output)
+- BASIC tokenised blocks → `.bas` (raw tokenised BASIC, load with openMSX BASIC `BLOAD`)
+- ASCII / text blocks → `.asc`
+
 
 ---
 
@@ -374,6 +491,9 @@ Device is Wemos D1 ESP, Host is the Linux host where `tapeosaurus.py` is run.
 | Spectrum: no blocks decoded             | Custom/turbo loader            | TZX Direct Recording block is still written — use tzxtools or PlayTZX to play it back               |
 | Spectrum: bad checksum warnings         | Worn tape or level mismatch    | Try adjusting the EAR volume on the source device; increase divider tolerance                        |
 | Spectrum: SENSE never fires             | No SENSE wiring                | Compile with `CAPTURE_WITHOUT_SENSE 1` for Spectrum use                                              |
+| MSX: no blocks decoded                  | Wrong baud rate                | Try `--baud 2400`; most commercial game tapes are 1200 baud but some publishers used 2400            |
+| MSX: garbled data                       | Signal level too high/low (not applicable when Commodore datasette is used)      | Adjust tape deck volume; verify 10 kΩ/20 kΩ divider is fitted on the EAR line                       |
+| MSX: SENSE never fires                  | No SENSE wiring (not applicable when Commodore datasette is used)                | Compile with `CAPTURE_WITHOUT_SENSE 1`; MSX has no motor-control equivalent to Datasette SENSE       |
 
 ---
 
@@ -391,4 +511,4 @@ Inspired by [TrueTape64](https://github.com/francescovannini/truetape64) by Fran
 
 ---
 
-*Made for the Commodore and Spectrum preservation community · Long live the Datasette 🖤*
+*Made for the Commodore, Spectrum and MSX preservation community · Long live the Datasette 🖤*

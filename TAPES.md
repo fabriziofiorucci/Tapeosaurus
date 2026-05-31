@@ -2,8 +2,9 @@
 
 Tapes successfully dumped and tested with:
 
-* VICE, the [Versatile Commodore Emulator](https://vice-emu.sourceforge.io/)
+* VICE, the [Versatile Commodore Emulator](https://vice-emu.sourceforge.io)
 * FUSE, the [Free Unix Spectrum Emulator](https://fuse-emulator.sourceforge.net)
+* WebMSX, the [online MSX emulator](https://webmsx.org)
 
 ### Commodore 16 & Plus/4
 
@@ -33,6 +34,7 @@ Tapes successfully dumped and tested with:
 | Name                           | Publisher                | Turbo tape |
 |--------------------------------|--------------------------|------------|
 | Basket Master                  | Imagine                  | Yes        |
+| Billo                          |                          | Yes        |
 | BMX Kidz                       | Firebird Software        | Yes        |
 | Bocce                          | Simulmondo               | Yes        |
 | Bomber                         |                          | Yes        |
@@ -54,3 +56,11 @@ Tapes successfully dumped and tested with:
 | Name                           | Publisher                | Turbo tape |
 |--------------------------------|--------------------------|------------|
 | Spectrum Advanced Graphics     | McGraw-Hill              |            |
+
+### MSX
+
+| Name                           | Publisher                | Turbo tape |
+|--------------------------------|--------------------------|------------|
+| Piggy                          |                          |            |
+| Stunt man                      |                          |            |
+| Universe                       |                          |            |
