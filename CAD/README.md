@@ -5,6 +5,10 @@ This repository folder contains the 3D design and print files for the Tapeosauru
 <div align="center"><img src="/img/tapeosaurus.cad.jpg" alt="Tapeosaurus enclosure"></div>
 
 <p align="middle">
+  <img src="/img/tapeosaurus-top.4.jpg" width="500" alt="Tapeosaurus components" />
+  <img src="/img/tapeosaurus-top.5.jpg" width="500" alt="Tapeosaurus board" />
+</p>
+<p align="middle">
   <img src="/img/tapeosaurus-top.1.jpg" width="500" alt="Tapeosaurus enclosure top view 1" />
   <img src="/img/tapeosaurus-top.2.jpg" width="500" alt="Tapeosaurus enclosure top view 2" />
 </p>
